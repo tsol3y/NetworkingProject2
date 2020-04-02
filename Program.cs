@@ -27,7 +27,7 @@ namespace http_example
                     var vs = line0.Split(" ");
                     if (vs.Length == 3)
                     {
-                        Console.WriteLine($"* Method: {vs[0]}, path: {vs[1]}, version: {vs[2]}");
+                        Console.WriteLine($"**** Method: {vs[0]}, path: {vs[1]}, version: {vs[2]}");
                     }
                     var headers = new Dictionary<string, string>();
                     while (true)
@@ -48,8 +48,6 @@ namespace http_example
                     else if (vs[1] == "/template.html")
                         SendTemplate(stream, "static/template.html", dict);
                     else if (vs[1] == "/ComplaintPage.html")
-                        await SendFile(stream, "static/ComplaintPage.html");
-                    else if (vs[1] == "/shop.html")
                         if (vs[0] == "POST" && headers.ContainsKey("Content-Length"))
                         {
                             int l;
@@ -62,17 +60,43 @@ namespace http_example
                                 var formData = UrlDecode(formDataRaw);
                                 if (formData.ContainsKey("newItem"))
                                 {
-                                    lock (dict)
+                                    lock (dict)                             // Ask Ryan about lock function. Does it keep this list separate from other pages?
                                     {
                                         var items = dict["list"] as List<string>;
-                                        items.Add($"<li>{formData["newItem"]}</li>");
+                                        items.Add($"<li>{formData["newIssue"]}</li>");
                                     }
                                 }
                             }
-                            Send302(stream, "/shop.html");
+                            Send302(stream, "/ComplaintPage.html");
                         }
                         else
-                            SendTemplate(stream, "static/shop.html", dict);
+                            SendTemplate(stream, "static/ComplaintPage.html", dict);
+
+                        
+                    // else if (vs[1] == "/shop.html")
+                    //     if (vs[0] == "POST" && headers.ContainsKey("Content-Length"))
+                    //     {
+                    //         int l;
+                    //         if (int.TryParse(headers["Content-Length"], out l) && 0 <= l && l < 150)
+                    //         {
+                    //             var cs = new char[l];
+                    //             await tr.ReadAsync(cs);
+                    //             var formDataRaw = new string(cs);
+                    //             Console.WriteLine($"> {formDataRaw}");
+                    //             var formData = UrlDecode(formDataRaw);
+                    //             if (formData.ContainsKey("newItem"))
+                    //             {
+                    //                 lock (dict)                             // Ask Ryan about lock function. Does it keep this list separate from other pages?
+                    //                 {
+                    //                     var items = dict["list"] as List<string>;
+                    //                     items.Add($"<li>{formData["newItem"]}</li>");
+                    //                 }
+                    //             }
+                    //         }
+                    //         Send302(stream, "/shop.html");
+                    //     }
+                    //     else
+                    //         SendTemplate(stream, "static/shop.html", dict);
                     else
                         Send404(stream);
                 }
@@ -150,7 +174,7 @@ namespace http_example
             return sb.ToString();
         }
 
-        private static void SendTemplate(NetworkStream stream, string path, Dictionary<string, IEnumerable<string>> dict)
+        private static void SendTemplate(NetworkStream stream, string path, Dictionary<string, IEnumerable<string>> dict)       // Ask Ryan about this method?
         {
             var fi = new FileInfo(path);
             var ct = GetContentType(fi.Extension);
