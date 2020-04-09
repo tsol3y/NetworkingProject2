@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -15,6 +16,7 @@ namespace http_example
         static Dictionary<string,IEnumerable<string>> dict = new Dictionary<string,IEnumerable<string>>();
         static async void RunClient(TcpClient c)
         {
+            string dropDown = File.ReadAllText("static/dropdown.html"); 
             try
             {
                 var stream = c.GetStream();
@@ -27,7 +29,7 @@ namespace http_example
                     var vs = line0.Split(" ");
                     if (vs.Length == 3)
                     {
-                        Console.WriteLine($"**** Method: {vs[0]}, path: {vs[1]}, version: {vs[2]}");
+                        Console.WriteLine($"* Method: {vs[0]}, path: {vs[1]}, version: {vs[2]}");
                     }
                     var headers = new Dictionary<string, string>();
                     while (true)
@@ -47,6 +49,18 @@ namespace http_example
                         await SendFile(stream, "static/cool.png");
                     else if (vs[1] == "/template.html")
                         SendTemplate(stream, "static/template.html", dict);
+                    else if (vs[1] == "/shop-static.html")
+                        await SendFile(stream, "static/shop-static.html");
+                    else if (vs[1] == "/all-items")
+                    {
+                        var content = "";
+                        lock (dict)
+                        {
+                            var items = dict["list"] as List<string>;
+                            content = items.Aggregate("", (a,b) => a + b);
+                        }
+                        SentContent(stream, content);
+                    }
                     else if (vs[1] == "/ComplaintPage.html")
                         if (vs[0] == "POST" && headers.ContainsKey("Content-Length"))
                         {
@@ -56,47 +70,41 @@ namespace http_example
                                 var cs = new char[l];
                                 await tr.ReadAsync(cs);
                                 var formDataRaw = new string(cs);
-                                Console.WriteLine($"> {formDataRaw}");
+                                Console.WriteLine($"> --- {formDataRaw}");
                                 var formData = UrlDecode(formDataRaw);
+                                
                                 if (formData.ContainsKey("newItem"))
                                 {
-                                    lock (dict)                             // Ask Ryan about lock function. Does it keep this list separate from other pages?
+                                    lock (dict)
                                     {
                                         var items = dict["list"] as List<string>;
-                                        items.Add($"<li>{formData["newIssue"]}</li>");
+                                        items.Add("<tr>");
+                                        items.Add($"<td>{formData["newItem"]}</td>");
+                                        items.Add("<td>Broken</td>");
+                                        items.Add(dropDown);
+                                        items.Add("</tr>");
                                     }
+                                }
+                                else if (formData.ContainsKey("option")){
+                                    lock (dict)
+                                    {
+                                        var items = dict["list"] as List<string>;
+                                        
+                                        
+                                    }
+                                }
+
+                                if (formData.ContainsKey("next"))
+                                {
+                                    Console.WriteLine("TEST 4");
+                                    Send302(stream, "/" + formData["next"]);
+                                    return;
                                 }
                             }
                             Send302(stream, "/ComplaintPage.html");
                         }
                         else
                             SendTemplate(stream, "static/ComplaintPage.html", dict);
-
-                        
-                    // else if (vs[1] == "/shop.html")
-                    //     if (vs[0] == "POST" && headers.ContainsKey("Content-Length"))
-                    //     {
-                    //         int l;
-                    //         if (int.TryParse(headers["Content-Length"], out l) && 0 <= l && l < 150)
-                    //         {
-                    //             var cs = new char[l];
-                    //             await tr.ReadAsync(cs);
-                    //             var formDataRaw = new string(cs);
-                    //             Console.WriteLine($"> {formDataRaw}");
-                    //             var formData = UrlDecode(formDataRaw);
-                    //             if (formData.ContainsKey("newItem"))
-                    //             {
-                    //                 lock (dict)                             // Ask Ryan about lock function. Does it keep this list separate from other pages?
-                    //                 {
-                    //                     var items = dict["list"] as List<string>;
-                    //                     items.Add($"<li>{formData["newItem"]}</li>");
-                    //                 }
-                    //             }
-                    //         }
-                    //         Send302(stream, "/shop.html");
-                    //     }
-                    //     else
-                    //         SendTemplate(stream, "static/shop.html", dict);
                     else
                         Send404(stream);
                 }
@@ -113,7 +121,7 @@ namespace http_example
             var pairs = s.Split("&");
             foreach (var p in pairs)
             {
-                var kv = s.Split("=", 2);
+                var kv = p.Split("=", 2);
                 if (kv.Length == 2)
                 {
                     var k = unescape(kv[0]);
@@ -174,7 +182,7 @@ namespace http_example
             return sb.ToString();
         }
 
-        private static void SendTemplate(NetworkStream stream, string path, Dictionary<string, IEnumerable<string>> dict)       // Ask Ryan about this method?
+        private static void SendTemplate(NetworkStream stream, string path, Dictionary<string, IEnumerable<string>> dict)
         {
             var fi = new FileInfo(path);
             var ct = GetContentType(fi.Extension);
@@ -205,6 +213,7 @@ namespace http_example
                 }
             }
             stream.Write(Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Length: {n}\r\n{ct}\r\n\r\n"));
+            
             foreach (var bs in ls)
                 stream.Write(bs);
         }
@@ -217,6 +226,15 @@ namespace http_example
         private static void Send302(NetworkStream stream, string path)
         {
             stream.Write(Encoding.ASCII.GetBytes($"HTTP/1.1 302 FOUND\r\nLocation: {path}\r\n\r\n"));
+        }
+
+        
+        private static void SentContent(NetworkStream stream, string content)
+        {
+            var bs = Encoding.UTF8.GetBytes(content);
+            var ct = GetContentType(".html");
+            stream.Write(Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Length: {bs.Length}\r\n{ct}\r\n\r\n"));
+            stream.Write(bs);
         }
 
         private static async Task SendFile(NetworkStream stream, string path)
