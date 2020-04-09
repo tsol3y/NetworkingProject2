@@ -22,28 +22,91 @@ namespace http_example
                 var stream = c.GetStream();
                 using (var tr = new StreamReader(stream))
                 {
-                    var line0 = await tr.ReadLineAsync();
-                    if (line0 == null)
+                    var request = await tr.ReadLineAsync();
+                    if (request == null)
                         return;
-                    Console.WriteLine($"> {line0}");
-                    var vs = line0.Split(" ");
-                    if (vs.Length == 3)
-                    {
-                        Console.WriteLine($"* Method: {vs[0]}, path: {vs[1]}, version: {vs[2]}");
-                    }
-                    var headers = new Dictionary<string, string>();
-                    while (true)
-                    {
-                        var line = await tr.ReadLineAsync();
-                        var kv = line.Split(":", 2);
-                        if (kv.Length == 2)
-                            headers.Add(kv[0].Trim(), kv[1].Trim());
-                        Console.WriteLine($"> {line}");
-                        if (string.IsNullOrEmpty(line))
+                    Console.WriteLine($"> {request}");
+                    var vs = request.Split(" ");
+                    //if (vs.Length == 3)
+                    //{
+                    //    Console.WriteLine($"* Method: {vs[0]}, path: {vs[1]}, version: {vs[2]}");
+                   // }
+
+                    switch(vs[0]){
+                        case "GET":
+                            
+                            if (vs[1] == "/" || vs[1] == "/ComplaintPage.html"){
+                                SendTemplate(stream, "static/ComplaintPage.html", dict);
+                            }
+                            break;
+                        case "POST":
+                            if(vs[1] == "/ComplaintPage.html"){
+                                var headers = new Dictionary<string, string>();
+                                while (true)
+                                {
+                                    var line = await tr.ReadLineAsync();
+                                    var kv = line.Split(":", 2);
+                                    if (kv.Length == 2)
+                                        headers.Add(kv[0].Trim(), kv[1].Trim());
+                                    Console.WriteLine($"> {line}");
+                                    if (string.IsNullOrEmpty(line))
+                                        break;
+                                }
+                                if(headers.ContainsKey("Content-Length")){
+                                    int l;
+                                    if (int.TryParse(headers["Content-Length"], out l) && 0 <= l && l < 150)
+                                    {
+                                        var cs = new char[l];
+                                        await tr.ReadAsync(cs);
+                                        var formDataRaw = new string(cs);
+                                        Console.WriteLine($"> --- {formDataRaw}");
+                                        var formData = UrlDecode(formDataRaw);
+                                        
+                                        if (formData.ContainsKey("newItem"))
+                                        {
+                                            lock (dict)
+                                            {
+                                                var items = dict["list"] as List<string>;
+                                                items.Add("<tr>");
+                                                items.Add($"<td>{formData["newItem"]}</td>");
+                                                items.Add("<td>Broken</td>");
+                                                items.Add("<td><form method=\"POST\">")
+                                                items.Add("<select name=\"dropdown\">");
+                                                items.Add(dropDown);
+                                                items.Add("</tr>");
+                                            }
+                                        }
+                                        else if (formData.ContainsKey("dropdown")){
+                                            lock (dict)
+                                            {
+                                                var items = dict["list"] as List<string>;
+                                                
+                                                
+                                            }
+                                        }
+
+                                        if (formData.ContainsKey("next"))
+                                        {
+                                            Send302(stream, "/" + formData["next"]);
+                                            return;
+                                        }
+                                    }
+                                    Send302(stream, "/ComplaintPage.html");
+                                }
+                            }
+                                
+                            
+
+                            break;
+                        case "HEAD":
+                            break;
+                        default:
                             break;
                     }
 
-                    if (vs[1] == "/" || vs[1] == "/index.html")
+                    
+
+                    /*if (vs[1] == "/" || vs[1] == "/index.html")
                         await SendFile(stream, "static/index.html");
                     else if (vs[1] == "/cool.png")
                         await SendFile(stream, "static/cool.png");
@@ -106,14 +169,16 @@ namespace http_example
                         else
                             SendTemplate(stream, "static/ComplaintPage.html", dict);
                     else
-                        Send404(stream);
+                        Send404(stream);*/
                 }
             }
+            
             catch (IOException e)
             {
                 Console.WriteLine(e);
             }
         }
+        
 
         private static IDictionary<string,string> UrlDecode(string s)
         {
@@ -182,7 +247,7 @@ namespace http_example
             return sb.ToString();
         }
 
-        private static void SendTemplate(NetworkStream stream, string path, Dictionary<string, IEnumerable<string>> dict)
+        /*private static void SendTemplate(NetworkStream stream, string path, Dictionary<string, IEnumerable<string>> dict)
         {
             var fi = new FileInfo(path);
             var ct = GetContentType(fi.Extension);
@@ -215,6 +280,44 @@ namespace http_example
             stream.Write(Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Length: {n}\r\n{ct}\r\n\r\n"));
             
             foreach (var bs in ls)
+                stream.Write(bs);
+        }*/
+
+        private static void SendTemplate(NetworkStream stream, string path, Dictionary<string, IEnumerable<string>> dict)
+        {
+            var fi = new FileInfo(path);
+            var contentType = GetContentType(fi.Extension);
+            var sendBytes = new List<byte[]>();
+            var contentLength = 0;
+            using (var f = new StreamReader(fi.OpenRead()))
+            {
+                var line = f.ReadLine();
+                while (line != null)
+                {
+                    
+                    if (line.StartsWith("$"))
+                    {
+                        if(dict.Count > 0){
+                            var vs = line.Split(" ", 2);
+                            foreach (var s in dict[vs[1]])
+                            {
+                                var bs = Encoding.UTF8.GetBytes(s);
+                                contentLength += bs.Length;
+                                sendBytes.Add(bs);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        var bs = Encoding.UTF8.GetBytes(line);
+                        contentLength += bs.Length;
+                        sendBytes.Add(bs);
+                    }
+                    line = f.ReadLine();
+                }
+            }
+            stream.Write(Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Length: {contentLength}\r\n{contentType}\r\n\r\n"));
+            foreach (var bs in sendBytes)
                 stream.Write(bs);
         }
 
