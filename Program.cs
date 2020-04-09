@@ -62,15 +62,15 @@ namespace http_example
                                         Console.WriteLine($"> --- {formDataRaw}");
                                         var formData = UrlDecode(formDataRaw);
                                         
-                                        if (formData.ContainsKey("newItem"))
+                                        if (formData.ContainsKey("newIssue"))
                                         {
                                             lock (dict)
                                             {
                                                 var items = dict["list"] as List<string>;
                                                 items.Add("<tr>");
-                                                items.Add($"<td>{formData["newItem"]}</td>");
+                                                items.Add($"<td>{formData["newIssue"]}</td>");
                                                 items.Add("<td>Broken</td>");
-                                                items.Add("<td><form method=\"POST\">")
+                                                items.Add("<td><form method=\"POST\">");
                                                 items.Add("<select name=\"dropdown\">");
                                                 items.Add(dropDown);
                                                 items.Add("</tr>");
