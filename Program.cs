@@ -65,7 +65,6 @@ namespace http_example
                                         String[] myKey = new String[TheKey.Count];//https://www.geeksforgeeks.org/c-sharp-get-an-icollection-containing-values-in-ordereddictionary/
                                         TheKey.CopyTo(myKey,0);
                                         String actualKey = myKey[0];
-                                        //Console.WriteLine(myKey[0]);
                                         
                                         if (formData.ContainsKey("newIssue"))
                                         {
@@ -80,7 +79,7 @@ namespace http_example
                                         else if (actualKey.Contains("dropdown")){
                                             lock (dict)
                                             {
-                                                // Console.WriteLine(actualKey);
+                                                
                                                 changeStatus(actualKey, formData[actualKey]);
                                                 
                                             }
