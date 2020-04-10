@@ -13,10 +13,13 @@ namespace http_example
 {
     class Program
     {
-        static Dictionary<string,IEnumerable<string>> dict = new Dictionary<string,IEnumerable<string>>();
+        static Dictionary<string,List<List<string>>> dict = new Dictionary<string,List<List<string>>>();
+        static string dropDown = File.ReadAllText("static/dropdown.html"); 
+
+        static int numIssues = 0;
         static async void RunClient(TcpClient c)
         {
-            string dropDown = File.ReadAllText("static/dropdown.html"); 
+            
             try
             {
                 var stream = c.GetStream();
@@ -58,26 +61,27 @@ namespace http_example
                                         var formDataRaw = new string(cs);
                                         Console.WriteLine($"> --- {formDataRaw}");
                                         var formData = UrlDecode(formDataRaw);
+                                        var TheKey = formData.Keys;
+                                        String[] myKey = new String[TheKey.Count];//https://www.geeksforgeeks.org/c-sharp-get-an-icollection-containing-values-in-ordereddictionary/
+                                        TheKey.CopyTo(myKey,0);
+                                        String actualKey = myKey[0];
+                                        //Console.WriteLine(myKey[0]);
                                         
                                         if (formData.ContainsKey("newIssue"))
                                         {
                                             lock (dict)
                                             {
-                                                var items = dict["list"] as List<string>;
-                                                items.Add("<tr>");
-                                                items.Add($"<td>{formData["newIssue"]}</td>");
-                                                items.Add("<td>Broken</td>");
-                                                items.Add("<td><form method=\"POST\">");
-                                                items.Add("<select name=\"dropdown\">");
-                                                items.Add(dropDown);
-                                                items.Add("</tr>");
+                                                dict["list"].Add(createNewRequest(formData["newIssue"]));
+                                                numIssues++;
+                                           
+                                                
                                             }
                                         }
-                                        else if (formData.ContainsKey("dropdown")){
+                                        else if (actualKey.Contains("dropdown")){
                                             lock (dict)
                                             {
-                                                var items = dict["list"] as List<string>;
-                                                
+                                                // Console.WriteLine(actualKey);
+                                                changeStatus(actualKey, formData[actualKey]);
                                                 
                                             }
                                         }
@@ -110,7 +114,17 @@ namespace http_example
             }
         }
         
-
+        static List<string> createNewRequest(string newIssue)
+        {
+            List<string> Request = new List<string>(){"<tr>",$"<td>{newIssue}</td>", "<td>Broken</td>",
+            $"<td><form method=\"POST\"><select name=\"dropdown {numIssues}\">",dropDown,"</tr>" };
+            return Request;
+        }
+        static void changeStatus(string dropDownNum, string newStatus)
+        {
+            int index = Int32.Parse(dropDownNum.Split(" ", 2)[1]);
+            dict["list"][index][2] = $"<td>{newStatus}</td>";
+        }
         private static IDictionary<string,string> UrlDecode(string s)
         {
             var d = new Dictionary<string,string>();
@@ -180,7 +194,7 @@ namespace http_example
 
         
 
-        private static void SendTemplate(NetworkStream stream, string path, Dictionary<string, IEnumerable<string>> dict)
+        private static void SendTemplate(NetworkStream stream, string path, Dictionary<string, List<List<string>>> dict)
         {
             var fi = new FileInfo(path);
             var contentType = GetContentType(fi.Extension);
@@ -198,9 +212,11 @@ namespace http_example
                             var vs = line.Split(" ", 2);
                             foreach (var s in dict[vs[1]])
                             {
-                                var bs = Encoding.UTF8.GetBytes(s);
-                                contentLength += bs.Length;
-                                sendBytes.Add(bs);
+                                foreach(var html in s){
+                                    var bs = Encoding.UTF8.GetBytes(html);
+                                    contentLength += bs.Length;
+                                    sendBytes.Add(bs);
+                                }
                             }
                         }
                     }
@@ -265,7 +281,7 @@ namespace http_example
             var ip = IPAddress.Parse("127.0.0.1");
             var port = 8080;
             
-            dict["list"] = new List<string>();
+            dict["list"] = new List<List<string>>();
 
             var server = new TcpListener(ip, port);
             server.Start();
