@@ -1,4 +1,4 @@
-using System;
+/*using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -13,10 +13,12 @@ namespace http_example
 {
     class Program
     {
-        static Dictionary<string,IEnumerable<string>> dict = new Dictionary<string,IEnumerable<string>>();
+        static Dictionary<string,List<List<string>>> dict = new Dictionary<string,List<List<string>>>();
+        static string dropDown = File.ReadAllText("static/dropdown.html"); 
         static async void RunClient(TcpClient c)
         {
-            string dropDown = File.ReadAllText("static/dropdown.html"); 
+            
+            int n = 0;
             try
             {
                 var stream = c.GetStream();
@@ -27,7 +29,10 @@ namespace http_example
                         return;
                     Console.WriteLine($"> {request}");
                     var vs = request.Split(" ");
-                    
+                    //if (vs.Length == 3)
+                    //{
+                    //    Console.WriteLine($"* Method: {vs[0]}, path: {vs[1]}, version: {vs[2]}");
+                   // }
 
                     switch(vs[0]){
                         case "GET":
@@ -58,25 +63,32 @@ namespace http_example
                                         var formDataRaw = new string(cs);
                                         Console.WriteLine($"> --- {formDataRaw}");
                                         var formData = UrlDecode(formDataRaw);
+                                       // var enum = formData.GetEnumerator();
                                         
                                         if (formData.ContainsKey("newIssue"))
                                         {
                                             lock (dict)
                                             {
-                                                var items = dict["list"] as List<string>;
-                                                items.Add("<tr>");
-                                                items.Add($"<td>{formData["newIssue"]}</td>");
-                                                items.Add("<td>Broken</td>");
-                                                items.Add("<td><form method=\"POST\">");
-                                                items.Add("<select name=\"dropdown\">");
-                                                items.Add(dropDown);
-                                                items.Add("</tr>");
+                                                var items = dict["list"];
+                                               // dict["list"].Add(createNewRequest(formData["newIssue"], n);
+                                                // dict["list"] = createNewRequest(formData["newIssue"], n);
+                                                items.Add(createNewRequest(formData["newIssue"], n));
+
+                                                // items.Add("<tr>");
+                                                // items.Add($"<td>{formData["newIssue"]}</td>");
+                                                // items.Add("<td>Broken</td>");
+                                                // items.Add("<td><form method=\"POST\">");
+                                                // items.Add("<select name=\"dropdown\">");
+                                                // items.Add(dropDown);
+                                                // items.Add("</tr>");
                                             }
                                         }
                                         else if (formData.ContainsKey("dropdown")){
+                        
                                             lock (dict)
                                             {
-                                                var items = dict["list"] as List<string>;
+                                                var items = dict["list"];
+                                                n += 1;
                                                 
                                                 
                                             }
@@ -110,7 +122,13 @@ namespace http_example
             }
         }
         
-
+        static List<string> createNewRequest(string newIssue, int num)
+        {
+            List<string> Request = new List<string>(){"<tr>",$"<td>{newIssue}</td>", "<td>Broken</td>",
+            $"<td><form method=\"POST\"><select name=\"dropdown{num}\">",dropDown,"</tr>" };
+            return Request;
+        }
+        
         private static IDictionary<string,string> UrlDecode(string s)
         {
             var d = new Dictionary<string,string>();
@@ -180,7 +198,7 @@ namespace http_example
 
         
 
-        private static void SendTemplate(NetworkStream stream, string path, Dictionary<string, IEnumerable<string>> dict)
+        private static void SendTemplate(NetworkStream stream, string path, Dictionary<string, List<List<string>>> dict)
         {
             var fi = new FileInfo(path);
             var contentType = GetContentType(fi.Extension);
@@ -196,14 +214,16 @@ namespace http_example
                     {
                         if(dict.Count > 0){
                             var vs = line.Split(" ", 2);
-                            foreach (var s in dict[vs[1]])
-                            {
-                                var bs = Encoding.UTF8.GetBytes(s);
-                                contentLength += bs.Length;
-                                sendBytes.Add(bs);
+                            foreach (var s in dict[vs[1]])  // access each list, 
+                                foreach(var html in s){
+                                    var bs = Encoding.UTF8.GetBytes(html);
+                                    contentLength += bs.Length;
+                                    sendBytes.Add(bs);
+                                }                   
+                                }
                             }
-                        }
-                    }
+                        
+            
                     else
                     {
                         var bs = Encoding.UTF8.GetBytes(line);
@@ -264,8 +284,97 @@ namespace http_example
         {
             var ip = IPAddress.Parse("127.0.0.1");
             var port = 8080;
-            
-            dict["list"] = new List<string>();
+
+            dict["list"] = new List<List<string>>();
+
+            var server = new TcpListener(ip, port);
+            server.Start();
+
+            while (true)
+            {
+                try
+                {
+                    var c = await server.AcceptTcpClientAsync();
+                    ThreadPool.QueueUserWorkItem(RunClient, c, false);
+                }
+                catch (IOException e)
+                {
+                    Console.WriteLine(e);
+                }
+            }
+        }
+    
+
+//   foreach(var code in s)
+//                                 var bs = Encoding.UTF8.GetBytes(s);
+     
+//                                                                      }    contentLength += bs.Length;
+//                                 sendBytes.Add(bs);
+//                             }
+//                         }
+//                     }
+//                     else
+//                     {
+//                         var bs = Encoding.UTF8.GetBytes(line);
+//                         contentLength += bs.Length;
+//                         sendBytes.Add(bs);
+//                     }
+//                     line = f.ReadLine();
+//                 }
+//             }
+        //     stream.Write(Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Length: {contentLength}\r\n{contentType}\r\n\r\n"));
+        //     foreach (var bs in sendBytes)
+        //         stream.Write(bs);
+        // }
+
+        private static void Send404(NetworkStream stream)
+        {
+            stream.Write(Encoding.ASCII.GetBytes($"HTTP/1.1 404 NOT FOUND\r\n\r\n"));
+        }
+
+        private static void Send302(NetworkStream stream, string path)
+        {
+            stream.Write(Encoding.ASCII.GetBytes($"HTTP/1.1 302 FOUND\r\nLocation: {path}\r\n\r\n"));
+        }
+
+        
+        private static void SentContent(NetworkStream stream, string content)
+        {
+            var bs = Encoding.UTF8.GetBytes(content);
+            var ct = GetContentType(".html");
+            stream.Write(Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Length: {bs.Length}\r\n{ct}\r\n\r\n"));
+            stream.Write(bs);
+        }
+
+        private static async Task SendFile(NetworkStream stream, string path)
+        {
+            var fi = new FileInfo(path);
+            var ct = GetContentType(fi.Extension);
+            stream.Write(Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Length: {fi.Length}\r\n{ct}\r\n\r\n"));
+            using (var f = fi.OpenRead())
+                await f.CopyToAsync(stream);
+        }
+
+        private static string GetContentType(string extension)
+        {
+            switch (extension)
+            {
+                case ".html":
+                case ".htm":
+                    return "Content-Type: text/html; charset=UTF-8";
+                case ".png":
+                    return "Content-Type: image/png";
+                default:
+                    return "Content-Type: text/plain";
+            }
+        }
+
+        static async Task Main(string[] args)
+        {
+            var ip = IPAddress.Parse("127.0.0.1");
+            var port = 8080;
+
+            dict["list"] = new List<List<string>>();
 
             var server = new TcpListener(ip, port);
             server.Start();
@@ -285,3 +394,4 @@ namespace http_example
         }
     }
 }
+*/
