@@ -24,7 +24,7 @@ In the directory of the C# file, run this line:
 ```
 dotnet run
 ```
-Once this is running, open web browser, go to [this link] (http://localhost:8080/ComplaintPage.html)
+Once this is running, open web browser, go to [this link](http://localhost:8080/ComplaintPage.html)
 
 
 
