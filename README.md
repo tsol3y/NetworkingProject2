@@ -1,8 +1,6 @@
 # Networking Project 2
 This code creates an HTTP server that directly communicates using TCP in C#.
-The HTTP server in this code creates a website on which people can submit issues.
-The website also displays previous issues and the status of those issues.
-People viewing the website can update the status of the issues as well.
+The HTTP server in this code creates a website on which people can view, submit, and update the status of multiple issues.
 ## How to build this code:
 To build this code, you must have a TCP listener to receive data from.
 The listener will receive three types of data: GET requests, POST requests, HEAD requests.
@@ -19,12 +17,16 @@ The body of the HTML code should include:
 - A table (This will be added to from the code above)
 - A form to add new issues. 
 ## How to run this code:
-The HTML Code should be in a subfolder titled static.
 In the directory of the C# file, run this line:
 ```
 dotnet run
 ```
-Once this is running, open web browser, go to [this link](http://localhost:8080/ComplaintPage.html)
+Once this is running, open web browser, go to [this link](http://localhost:8080/ComplaintPage.html).
+
+### Helpful Sources in our work:
+[Making sure that unwanted html isn't being added](https://stackoverflow.com/questions/204646/how-to-validate-that-a-string-doesnt-contain-html-using-c-sharp)
+[Deciphering the request we received](https://www.geeksforgeeks.org/c-sharp-get-an-icollection-containing-values-in-ordereddictionary/)
+[Live Updates to our website](https://stackoverflow.com/questions/8711888/auto-refresh-code-in-html-using-meta-tags)
 
 
 

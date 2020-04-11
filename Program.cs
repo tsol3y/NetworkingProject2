@@ -67,11 +67,10 @@ namespace http_example
                                         var values = formData.Values;
                                         String actualKey = "";
                                         if(values.Count > 0){
-                                            String[] myKey = new String[keys.Count];//https://www.geeksforgeeks.org/c-sharp-get-an-icollection-containing-values-in-ordereddictionary/
+                                            String[] myKey = new String[keys.Count];
                                             keys.CopyTo(myKey,0);
                                             actualKey = myKey[0];
                                         }
-                                        
                                         if (formData.ContainsKey("newIssue"))
                                         {
                                             lock (issues)
@@ -121,7 +120,7 @@ namespace http_example
                 Console.WriteLine(e);
             }
         }
-        static bool ContainsHTML(string CheckString)//https://stackoverflow.com/questions/204646/how-to-validate-that-a-string-doesnt-contain-html-using-c-sharp
+        static bool ContainsHTML(string CheckString)
         {
             return Regex.IsMatch(CheckString, "<(.|\n)*?>");
         }
