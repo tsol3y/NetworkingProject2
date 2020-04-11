@@ -23,9 +23,9 @@ namespace http_example
             try
             {
                 var stream = c.GetStream();
-                using (var tr = new StreamReader(stream))
+                using (var streamReader = new StreamReader(stream))
                 {
-                    var request = await tr.ReadLineAsync();
+                    var request = await streamReader.ReadLineAsync();
                     if (request == null)
                         return;
                     Console.WriteLine($"> {request}");
@@ -34,9 +34,11 @@ namespace http_example
 
                     switch(vs[0]){
                         case "GET":
-                            
                             if (vs[1] == "/" || vs[1] == "/ComplaintPage.html"){
                                 SendTemplate(stream, "static/ComplaintPage.html", dict);
+                            }
+                            else{
+                                Send404(stream);
                             }
                             break;
                         case "POST":
@@ -44,7 +46,7 @@ namespace http_example
                                 var headers = new Dictionary<string, string>();
                                 while (true)
                                 {
-                                    var line = await tr.ReadLineAsync();
+                                    var line = await streamReader.ReadLineAsync();
                                     var kv = line.Split(":", 2);
                                     if (kv.Length == 2)
                                         headers.Add(kv[0].Trim(), kv[1].Trim());
@@ -57,14 +59,18 @@ namespace http_example
                                     if (int.TryParse(headers["Content-Length"], out l) && 0 <= l && l < 150)
                                     {
                                         var cs = new char[l];
-                                        await tr.ReadAsync(cs);
+                                        await streamReader.ReadAsync(cs);
                                         var formDataRaw = new string(cs);
                                         Console.WriteLine($"> --- {formDataRaw}");
                                         var formData = UrlDecode(formDataRaw);
-                                        var TheKey = formData.Keys;
-                                        String[] myKey = new String[TheKey.Count];//https://www.geeksforgeeks.org/c-sharp-get-an-icollection-containing-values-in-ordereddictionary/
-                                        TheKey.CopyTo(myKey,0);
-                                        String actualKey = myKey[0];
+                                        var keys = formData.Keys;
+                                        var values = formData.Values;
+                                        String actualKey = "";
+                                        if(values.Count > 0){
+                                            String[] myKey = new String[keys.Count];//https://www.geeksforgeeks.org/c-sharp-get-an-icollection-containing-values-in-ordereddictionary/
+                                            keys.CopyTo(myKey,0);
+                                            actualKey = myKey[0];
+                                        }
                                         
                                         if (formData.ContainsKey("newIssue"))
                                         {
@@ -94,11 +100,12 @@ namespace http_example
                                     Send302(stream, "/ComplaintPage.html");
                                 }
                             }
-                                
-                            
-
+                            else{
+                                Send404(stream);
+                            }  
                             break;
                         case "HEAD":
+
                             break;
                         default:
                             break;
@@ -115,14 +122,16 @@ namespace http_example
         
         static List<string> createNewRequest(string newIssue)
         {
-            List<string> Request = new List<string>(){"<tr>",$"<td>{newIssue}</td>", "<td>Broken</td>",
+            List<string> Request = new List<string>(){"<tr>",$"<td>{newIssue}</td>", "<td>Open</td>",
             $"<td><form method=\"POST\"><select name=\"dropdown {numIssues}\">",dropDown,"</tr>" };
             return Request;
         }
         static void changeStatus(string dropDownNum, string newStatus)
         {
-            int index = Int32.Parse(dropDownNum.Split(" ", 2)[1]);
-            dict["list"][index][2] = $"<td>{newStatus}</td>";
+            if(newStatus.Equals("Select Option") == false){
+                int index = Int32.Parse(dropDownNum.Split(" ", 2)[1]);
+                dict["list"][index][2] = $"<td>{newStatus}</td>";
+            }
         }
         private static IDictionary<string,string> UrlDecode(string s)
         {
