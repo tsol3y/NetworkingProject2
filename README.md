@@ -1,5 +1,5 @@
 # Networking Project 2
-This code creates an HTTP server that directly communicates with TCP in C#.
+This code creates an HTTP server that directly communicates using TCP in C#.
 The HTTP server in this code creates a website on which people can submit issues.
 The website also displays previous issues and the status of those issues.
 People viewing the website can update the status of the issues as well.
@@ -24,7 +24,7 @@ In the directory of the C# file, run this line:
 ```
 dotnet run
 ```
-Once this is running, open web browser, go to this link ---> localhost:8080/ComplaintPage.html
+Once this is running, open web browser, go to [this link] (http://localhost:8080/ComplaintPage.html)
 
 
 
