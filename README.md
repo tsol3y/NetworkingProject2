@@ -24,9 +24,9 @@ dotnet run
 Once this is running, open web browser, go to [this link](http://localhost:8080/ComplaintPage.html).
 
 ### Helpful Sources in our work:
-[Making sure that unwanted html isn't being added](https://stackoverflow.com/questions/204646/how-to-validate-that-a-string-doesnt-contain-html-using-c-sharp)
-[Deciphering the request we received](https://www.geeksforgeeks.org/c-sharp-get-an-icollection-containing-values-in-ordereddictionary/)
-[Live Updates to our website](https://stackoverflow.com/questions/8711888/auto-refresh-code-in-html-using-meta-tags)
+- [Making sure that unwanted html isn't being added](https://stackoverflow.com/questions/204646how-to-validate-that-a-string-doesnt-contain-html-using-c-sharp)
+- [Deciphering the request we received](https://www.geeksforgeeks.org/c-sharp-get-an-icollection-containing-values-in-ordereddictionary/)
+- [Live Updates to our website](https://stackoverflow.com/questions/8711888/auto-refresh-code-in-html-using-meta-tags)
 
 
 
