@@ -8,41 +8,41 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 
 namespace http_example
 {
     class Program
     {
-        static Dictionary<string,List<List<string>>> dict = new Dictionary<string,List<List<string>>>();
+        static Dictionary<string,List<List<string>>> issues = new Dictionary<string,List<List<string>>>();
         static string dropDown = File.ReadAllText("static/dropdown.html"); 
-
         static int numIssues = 0;
-        static async void RunClient(TcpClient c)
+        static async void RunClient(TcpClient client)
         {
             
             try
             {
-                var stream = c.GetStream();
+                var stream = client.GetStream();
                 using (var streamReader = new StreamReader(stream))
                 {
                     var request = await streamReader.ReadLineAsync();
                     if (request == null)
                         return;
                     Console.WriteLine($"> {request}");
-                    var vs = request.Split(" ");
+                    var requestLine1 = request.Split(" ");
                     
 
-                    switch(vs[0]){
+                    switch(requestLine1[0]){
                         case "GET":
-                            if (vs[1] == "/" || vs[1] == "/ComplaintPage.html"){
-                                SendTemplate(stream, "static/ComplaintPage.html", dict);
+                            if (requestLine1[1] == "/" || requestLine1[1] == "/ComplaintPage.html"){
+                                SendTemplate(stream, "static/ComplaintPage.html", issues);
                             }
                             else{
                                 Send404(stream);
                             }
                             break;
                         case "POST":
-                            if(vs[1] == "/ComplaintPage.html"){
+                            if(requestLine1[1] == "/" || requestLine1[1] == "/ComplaintPage.html"){
                                 var headers = new Dictionary<string, string>();
                                 while (true)
                                 {
@@ -74,20 +74,16 @@ namespace http_example
                                         
                                         if (formData.ContainsKey("newIssue"))
                                         {
-                                            lock (dict)
+                                            lock (issues)
                                             {
-                                                dict["list"].Add(createNewRequest(formData["newIssue"]));
+                                                issues["list"].Add(createNewRequest(formData["newIssue"]));
                                                 numIssues++;
-                                           
-                                                
                                             }
                                         }
                                         else if (actualKey.Contains("dropdown")){
-                                            lock (dict)
+                                            lock (issues)
                                             {
-                                                
                                                 changeStatus(actualKey, formData[actualKey]);
-                                                
                                             }
                                         }
 
@@ -105,7 +101,13 @@ namespace http_example
                             }  
                             break;
                         case "HEAD":
-
+                            if(requestLine1[1] == "/" || requestLine1[1] == "/ComplaintPage.html"){
+                                SendTemplate(stream, "static/ComplaintPage.html", issues, false);
+                            }
+                            else 
+                            {
+                                Send404(stream);
+                            }
                             break;
                         default:
                             break;
@@ -119,18 +121,26 @@ namespace http_example
                 Console.WriteLine(e);
             }
         }
+        static bool ContainsHTML(string CheckString)//https://stackoverflow.com/questions/204646/how-to-validate-that-a-string-doesnt-contain-html-using-c-sharp
+        {
+            return Regex.IsMatch(CheckString, "<(.|\n)*?>");
+        }
         
         static List<string> createNewRequest(string newIssue)
         {
-            List<string> Request = new List<string>(){"<tr>",$"<td>{newIssue}</td>", "<td>Open</td>",
-            $"<td><form method=\"POST\"><select name=\"dropdown {numIssues}\">",dropDown,"</tr>" };
+            List<string> Request = new List<string>();
+            if(!ContainsHTML(newIssue)){
+                Request.AddRange(new String[]{"<tr>",$"<td>{newIssue}</td>", "<td>Open</td>",
+                $"<td><form method=\"POST\"><select name=\"dropdown {numIssues}\">",dropDown,"</tr>"});
+            }
+            
             return Request;
         }
         static void changeStatus(string dropDownNum, string newStatus)
         {
             if(newStatus.Equals("Select Option") == false){
                 int index = Int32.Parse(dropDownNum.Split(" ", 2)[1]);
-                dict["list"][index][2] = $"<td>{newStatus}</td>";
+                issues["list"][index][2] = $"<td>{newStatus}</td>";
             }
         }
         private static IDictionary<string,string> UrlDecode(string s)
@@ -142,10 +152,10 @@ namespace http_example
                 var kv = p.Split("=", 2);
                 if (kv.Length == 2)
                 {
-                    var k = unescape(kv[0]);
-                    var v = unescape(kv[1]);
-                    if (!string.IsNullOrEmpty(k) && !string.IsNullOrEmpty(v))
-                        d[k] = v;
+                    var key = unescape(kv[0]);
+                    var value = unescape(kv[1]);
+                    if (!string.IsNullOrEmpty(key) && !string.IsNullOrEmpty(value))
+                        d[key] = value;
                 }
             }
             return d;
@@ -202,7 +212,7 @@ namespace http_example
 
         
 
-        private static void SendTemplate(NetworkStream stream, string path, Dictionary<string, List<List<string>>> dict)
+        private static void SendTemplate(NetworkStream stream, string path, Dictionary<string, List<List<string>>> dict, bool sendAll=true)
         {
             var fi = new FileInfo(path);
             var contentType = GetContentType(fi.Extension);
@@ -238,8 +248,11 @@ namespace http_example
                 }
             }
             stream.Write(Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Length: {contentLength}\r\n{contentType}\r\n\r\n"));
-            foreach (var bs in sendBytes)
+            if(sendAll)
+            {
+                foreach (var bs in sendBytes)
                 stream.Write(bs);
+            }
         }
 
         private static void Send404(NetworkStream stream)
@@ -289,7 +302,7 @@ namespace http_example
             var ip = IPAddress.Parse("127.0.0.1");
             var port = 8080;
             
-            dict["list"] = new List<List<string>>();
+            issues["list"] = new List<List<string>>();
 
             var server = new TcpListener(ip, port);
             server.Start();
@@ -298,8 +311,8 @@ namespace http_example
             {
                 try
                 {
-                    var c = await server.AcceptTcpClientAsync();
-                    ThreadPool.QueueUserWorkItem(RunClient, c, false);
+                    var client = await server.AcceptTcpClientAsync();
+                    ThreadPool.QueueUserWorkItem(RunClient, client, false);
                 }
                 catch (IOException e)
                 {
