@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -33,6 +32,7 @@ namespace http_example
                     
 
                     switch(requestLine1[0]){
+                        default:
                         case "GET":
                             if (requestLine1[1] == "/" || requestLine1[1] == "/ComplaintPage.html"){
                                 SendTemplate(stream, "static/ComplaintPage.html", issues);
@@ -108,8 +108,6 @@ namespace http_example
                                 Send404(stream);
                             }
                             break;
-                        default:
-                            break;
                     }
 
                 }
@@ -137,8 +135,8 @@ namespace http_example
         }
         static void changeStatus(string dropDownNum, string newStatus)
         {
-            if(newStatus.Equals("Select Option") == false){
-                int index = Int32.Parse(dropDownNum.Split(" ", 2)[1]);
+            int index;
+            if(newStatus.Equals("Select Option") == false && int.TryParse(dropDownNum.Split(" ", 2)[1], NumberStyles.Integer, null, out index)){
                 issues["list"][index][2] = $"<td>{newStatus}</td>";
             }
         }
