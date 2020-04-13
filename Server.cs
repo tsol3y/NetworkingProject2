@@ -32,7 +32,6 @@ namespace http_example
                     
 
                     switch(requestLine1[0]){
-                        default:
                         case "GET":
                             if (requestLine1[1] == "/" || requestLine1[1] == "/ComplaintPage.html"){
                                 SendTemplate(stream, "static/ComplaintPage.html", issues);
@@ -108,6 +107,9 @@ namespace http_example
                                 Send404(stream);
                             }
                             break;
+                        default:
+                            Send405(stream);
+                            break;
                     }
 
                 }
@@ -118,6 +120,12 @@ namespace http_example
                 Console.WriteLine(e);
             }
         }
+
+        private static void Send405(NetworkStream stream)
+        {
+            stream.Write(Encoding.ASCII.GetBytes($"HTTP/1.1 405 METHOD NOT ALLOWED\r\nAllow: GET, POST, HEAD\r\n\r\n"));
+        }
+
         static bool ContainsHTML(string CheckString)
         {
             return Regex.IsMatch(CheckString, "<(.|\n)*?>");

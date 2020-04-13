@@ -1,6 +1,6 @@
 # Networking Project 2 - HTTP Server Using TCP
 This code creates an HTTP server that directly communicates using TCP in C#.
-The HTTP server in this code creates a website on which people can view, submit, and update the status of multiple issues.
+The HTTP server in this code creates a website on which people can view, submit, and update the status of multiple issues. This server only handles GET, POST, and HEAD requests.
 This repository includes the code the server runs (Server.cs) and the HTML for the webpage (ComplaintPage.html and dropdown.html) as well as the project file (Proj2.csproj).
 ## How to build and run this code:
 Install the latest version of [.NET Core SDK] (https://dotnet.microsoft.com/download) (we used version 3.1.101). Clone or download this repository.
