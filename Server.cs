@@ -9,9 +9,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Text.RegularExpressions;
 
-namespace http_example
+namespace tcp_server
 {
-    class Program
+    class Server
     {
         static Dictionary<string,List<List<string>>> issues = new Dictionary<string,List<List<string>>>();
         static string dropDown = File.ReadAllText("static/dropdown.html"); 
@@ -30,18 +30,12 @@ namespace http_example
                     Console.WriteLine($"> {request}");
                     var requestLine1 = request.Split(" ");
                     
-
-                    switch(requestLine1[0]){
-                        case "GET":
-                            if (requestLine1[1] == "/" || requestLine1[1] == "/ComplaintPage.html"){
+                    if (requestLine1[1] == "/" || requestLine1[1] == "/ComplaintPage.html"){//ComplaintPage.html is the only page we have
+                        switch(requestLine1[0]){
+                            case "GET":
                                 SendTemplate(stream, "static/ComplaintPage.html", issues);
-                            }
-                            else{
-                                Send404(stream);
-                            }
-                            break;
-                        case "POST":
-                            if(requestLine1[1] == "/" || requestLine1[1] == "/ComplaintPage.html"){
+                                break;
+                            case "POST":
                                 var headers = new Dictionary<string, string>();
                                 while (true)
                                 {
@@ -84,34 +78,21 @@ namespace http_example
                                                 changeStatus(actualKey, formData[actualKey]);
                                             }
                                         }
-
-                                        if (formData.ContainsKey("next"))
-                                        {
-                                            Send302(stream, "/" + formData["next"]);
-                                            return;
-                                        }
                                     }
                                     Send302(stream, "/ComplaintPage.html");
                                 }
-                            }
-                            else{
-                                Send404(stream);
-                            }  
-                            break;
-                        case "HEAD":
-                            if(requestLine1[1] == "/" || requestLine1[1] == "/ComplaintPage.html"){
+                                break;
+                            case "HEAD":
                                 SendTemplate(stream, "static/ComplaintPage.html", issues, false);
-                            }
-                            else 
-                            {
-                                Send404(stream);
-                            }
-                            break;
-                        default:
-                            Send405(stream);
-                            break;
+                                break;
+                            default:
+                                Send405(stream);
+                                break;
+                        }
                     }
-
+                    else{
+                        Send404(stream);
+                    }
                 }
             }
             
@@ -133,18 +114,18 @@ namespace http_example
         
         static List<string> createNewRequest(string newIssue)
         {
-            List<string> Request = new List<string>();
+            List<string> request = new List<string>();
             if(!ContainsHTML(newIssue)){
-                Request.AddRange(new String[]{"<tr>",$"<td>{newIssue}</td>", "<td>Open</td>",
+                request.AddRange(new String[]{"<tr>",$"<td>{newIssue}</td>", "<td>Open</td>",
                 $"<td><form method=\"POST\"><select name=\"dropdown {numIssues}\">",dropDown,"</tr>"});
             }
             
-            return Request;
+            return request;
         }
         static void changeStatus(string dropDownNum, string newStatus)
         {
             int index;
-            if(newStatus.Equals("Select Option") == false && int.TryParse(dropDownNum.Split(" ", 2)[1], NumberStyles.Integer, null, out index)){
+            if(newStatus.Equals("Select Option") == false && int.TryParse(dropDownNum.Split(" ", 2)[1], NumberStyles.Integer, null, out index)){//We don't want the user to be able to change the status of an issue to "Select Option"
                 issues["list"][index][2] = $"<td>{newStatus}</td>";
             }
         }
@@ -214,9 +195,6 @@ namespace http_example
             }
             return sb.ToString();
         }
-
-        
-
         private static void SendTemplate(NetworkStream stream, string path, Dictionary<string, List<List<string>>> dict, bool sendAll=true)
         {
             var fi = new FileInfo(path);
@@ -268,26 +246,7 @@ namespace http_example
         private static void Send302(NetworkStream stream, string path)
         {
             stream.Write(Encoding.ASCII.GetBytes($"HTTP/1.1 302 FOUND\r\nLocation: {path}\r\n\r\n"));
-        }
-
-        
-        private static void SentContent(NetworkStream stream, string content)
-        {
-            var bs = Encoding.UTF8.GetBytes(content);
-            var ct = GetContentType(".html");
-            stream.Write(Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Length: {bs.Length}\r\n{ct}\r\n\r\n"));
-            stream.Write(bs);
-        }
-
-        private static async Task SendFile(NetworkStream stream, string path)
-        {
-            var fi = new FileInfo(path);
-            var ct = GetContentType(fi.Extension);
-            stream.Write(Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Length: {fi.Length}\r\n{ct}\r\n\r\n"));
-            using (var f = fi.OpenRead())
-                await f.CopyToAsync(stream);
-        }
-
+        }        
         private static string GetContentType(string extension)
         {
             switch (extension)
